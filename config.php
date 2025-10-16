@@ -1,5 +1,7 @@
 <?php
-// Database configuration - change these if needed
+session_start();
+
+// Database configuration
 $db_host = 'localhost';
 $db_user = 'root';
 $db_pass = '';
