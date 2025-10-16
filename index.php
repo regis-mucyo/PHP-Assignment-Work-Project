@@ -1,9 +1,16 @@
 <?php
 // Include database connection
-include'config.php';
+include 'config.php';
+
+// Redirect if not logged in
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
 
 // Variable to store success or error messages
 $message = '';
+$user_id = $_SESSION['user_id'];
 
 // Check if form was submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -15,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Check if all fields are filled
     if (!empty($title) && !empty($ingredients) && !empty($steps)) {
         // Prepare SQL query to insert recipe
-        $sql = "INSERT INTO recipes (title, ingredients, steps) VALUES ('$title', '$ingredients', '$steps')";
+        $sql = "INSERT INTO recipes (title, ingredients, steps, user_id) VALUES ('$title', '$ingredients', '$steps', $user_id)";
         
         // Execute query
         if ($conn->query($sql)) {
@@ -28,8 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get all recipes from database
-$sql = "SELECT * FROM recipes ORDER BY created_at DESC";
+// Get all recipes from database for the logged in user
+$sql = "SELECT * FROM recipes WHERE user_id = $user_id ORDER BY created_at DESC";
 $result = $conn->query($sql);
 ?>
 <!DOCTYPE html>
@@ -42,24 +49,23 @@ $result = $conn->query($sql);
 </head>
 <body class="bg-white">
     <div class="min-h-screen">
-        <!-- Header -->
         <header class="bg-green-500 text-white shadow-lg">
-            <div class="container mx-auto px-4 py-6">
-                <h1 class="text-4xl font-bold">Recipe Manager</h1>
-                <p class="mt-2">Organize and discover delicious recipes</p>
+            <div class="container mx-auto px-4 py-6 flex justify-between items-center">
+                <div>
+                    <h1 class="text-4xl font-bold">Recipe Manager</h1>
+                    <p class="mt-2">Welcome, <?php echo $_SESSION['username']; ?>!</p>
+                </div>
+                <a href="logout.php" class="bg-white text-green-500 font-semibold py-2 px-4 rounded-lg">Logout</a>
             </div>
         </header>
 
         <div class="container mx-auto px-4 py-8">
-            <!-- Display message if any -->
             <?php echo $message; ?>
 
-            <!-- Add Recipe Form -->
             <div class="bg-white border-2 border-green-500 rounded-lg shadow-md p-6 mb-8">
                 <h2 class="text-2xl font-bold text-green-500 mb-4">Add New Recipe</h2>
                 <form method="POST" action="">
                     
-                    <!-- Recipe Title Input -->
                     <div class="mb-4">
                         <label for="title" class="block text-sm font-medium text-gray-700 mb-2">Recipe Title</label>
                         <input type="text" id="title" name="title" required
@@ -67,7 +73,6 @@ $result = $conn->query($sql);
                                placeholder="e.g., Chocolate Chip Cookies">
                     </div>
                     
-                    <!-- Ingredients Input -->
                     <div class="mb-4">
                         <label for="ingredients" class="block text-sm font-medium text-gray-700 mb-2">Ingredients (one per line)</label>
                         <textarea id="ingredients" name="ingredients" required rows="6"
@@ -75,7 +80,6 @@ $result = $conn->query($sql);
                                   placeholder="2 cups flour&#10;1 cup sugar&#10;3 eggs"></textarea>
                     </div>
                     
-                    <!-- Cooking Steps Input -->
                     <div class="mb-4">
                         <label for="steps" class="block text-sm font-medium text-gray-700 mb-2">Cooking Steps (one per line)</label>
                         <textarea id="steps" name="steps" required rows="6"
@@ -83,70 +87,62 @@ $result = $conn->query($sql);
                                   placeholder="1. Preheat oven to 350°F&#10;2. Mix dry ingredients&#10;3. Add wet ingredients"></textarea>
                     </div>
                     
-                    <!-- Submit Button -->
                     <button type="submit" class="w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg">
                         Add Recipe
                     </button>
                 </form>
             </div>
 
-            <!-- Display All Recipes -->
             <div>
                 <h2 class="text-2xl font-bold text-green-500 mb-6">
-                    All Recipes (<?php echo $result->num_rows; ?>)
+                    My Recipes (<?php echo $result->num_rows; ?>)
                 </h2>
                 
                 <?php if ($result->num_rows == 0): ?>
-                    <!-- Show this if no recipes exist -->
                     <div class="text-center py-12 bg-white border-2 border-green-500 rounded-lg shadow-md">
                         <p class="text-gray-500 text-lg">No recipes yet. Add your first recipe above!</p>
                     </div>
                 <?php else: ?>
-                    <!-- Show recipes in cards -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <?php while($recipe = $result->fetch_assoc()): ?>
                             <div class="bg-white border-2 border-green-500 rounded-lg shadow-md">
-                                <!-- Recipe Title -->
-                                <div class="bg-green-500 text-white p-4">
+                                <div class="bg-green-500 text-white p-4 flex justify-between items-center">
                                     <h3 class="text-xl font-bold"><?php echo $recipe['title']; ?></h3>
+                                    <div>
+                                        <a href="edit.php?id=<?php echo $recipe['id']; ?>" class="text-sm bg-white text-green-500 py-1 px-2 rounded-lg mr-2">Edit</a>
+                                        <a href="delete.php?id=<?php echo $recipe['id']; ?>" class="text-sm bg-red-500 text-white py-1 px-2 rounded-lg" onclick="return confirm('Are you sure you want to delete this recipe?')">Delete</a>
+                                    </div>
                                 </div>
                                 
                                 <div class="p-6">
-                                    <!-- Ingredients Section -->
                                     <div class="mb-4">
                                         <h4 class="font-semibold text-green-500 mb-2">Ingredients</h4>
                                         <div class="text-sm text-gray-600 bg-gray-50 rounded p-3 max-h-40 overflow-y-auto border border-green-500">
                                             <?php 
-                                            // Split ingredients by new line
                                             $ingredients_list = explode("\n", $recipe['ingredients']);
-                                            // Loop through each ingredient
                                             foreach ($ingredients_list as $ingredient) {
                                                 if (trim($ingredient) != '') {
-                                                    echo '<div class="mb-1">• ' . $ingredient . '</div>';
+                                                    echo '<div class="mb-1">• ' . htmlspecialchars($ingredient) . '</div>';
                                                 }
                                             }
                                             ?>
                                         </div>
                                     </div>
                                     
-                                    <!-- Steps Section -->
                                     <div class="mb-4">
                                         <h4 class="font-semibold text-green-500 mb-2">Steps</h4>
                                         <div class="text-sm text-gray-600 bg-gray-50 rounded p-3 max-h-40 overflow-y-auto border border-green-500">
                                             <?php 
-                                            // Split steps by new line
                                             $steps_list = explode("\n", $recipe['steps']);
-                                            // Loop through each step
                                             foreach ($steps_list as $step) {
                                                 if (trim($step) != '') {
-                                                    echo '<div class="mb-2">' . $step . '</div>';
+                                                    echo '<div class="mb-2">' . htmlspecialchars($step) . '</div>';
                                                 }
                                             }
                                             ?>
                                         </div>
                                     </div>
                                     
-                                    <!-- Date Added -->
                                     <div class="pt-4 border-t border-green-500">
                                         <span class="text-xs text-gray-500">
                                             Added: <?php echo date('M d, Y', strtotime($recipe['created_at'])); ?>
