@@ -1,5 +1,4 @@
 <?php
-// PHP code remains the same
 include 'config.php';
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -1,5 +1,4 @@
 <?php
-// PHP code remains the same
 include 'config.php';
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
